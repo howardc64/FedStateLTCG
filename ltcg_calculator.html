@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LTCG Tax Rate Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #f0f3f7;
+  --surface: #ffffff;
+  --surface2: #f4f6f9;
+  --border: #dde2ea;
+  --border2: #c8d0da;
+  --text: #1a2133;
+  --text-muted: #6b7a8d;
+  --text-dim: #a0aab8;
+  --accent: #2563eb;
+  --accent2: #1d4ed8;
+  --amber: #b45309;
+  --green: #047857;
+  --red: #b91c1c;
+  --irmaa: #d97706;
+  --pa: #2563eb;
+  --pb: #7c3aed;
+  --wa: #7c3aed;
+  --ca: #e11d48;
+  --ny: #0891b2;
+  --nyc: #0e7490;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 13px;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Header ──────────────────────────────────────────────── */
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 11px 20px;
+  display: flex; align-items: baseline; gap: 14px;
+  position: sticky; top: 0; z-index: 200;
+}
+header h1 {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px; font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase;
+}
+header span {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px; color: var(--text-muted); letter-spacing: 0.06em;
+}
+
+/* ── Page grid: sidebar | main ───────────────────────────── */
+.page {
+  display: grid;
+  grid-template-columns: 210px 1fr;
+  min-height: calc(100vh - 44px);
+}
+
+/* ── Shared sidebar ───────────────────────────────────────── */
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 16px 14px;
+  display: flex; flex-direction: column; gap: 18px;
+  position: sticky; top: 44px;
+  height: calc(100vh - 44px);
+  overflow-y: auto;
+}
+.sidebar-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 8px; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--text-dim); margin-bottom: 2px;
+}
+.sec-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 8px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--text-muted); margin-bottom: 7px;
+}
+
+/* Selects */
+.sel-wrap { position: relative; }
+.sel-wrap select {
+  width: 100%; appearance: none;
+  background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: 5px; padding: 7px 24px 7px 9px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+  color: var(--text); cursor: pointer; outline: none;
+  transition: border-color 0.15s;
+}
+.sel-wrap select:focus { border-color: var(--accent); }
+.sel-wrap::after {
+  content: '▾'; position: absolute; right: 8px; top: 50%;
+  transform: translateY(-50%); color: var(--text-muted);
+  font-size: 10px; pointer-events: none;
+}
+
+/* Sliders */
+.sl-wrap { display: flex; flex-direction: column; gap: 6px; }
+.sl-row { display: flex; justify-content: space-between; align-items: baseline; }
+.sl-name { font-size: 11px; font-weight: 500; }
+.sl-val {
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+  font-weight: 600; color: var(--accent2);
+}
+input[type=range] {
+  -webkit-appearance: none; width: 100%; height: 3px;
+  background: var(--border2); border-radius: 2px; outline: none; cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 12px; height: 12px;
+  border-radius: 50%; background: var(--accent);
+  border: 2px solid #fff; box-shadow: 0 0 4px rgba(59,130,246,0.4);
+}
+input[type=range]::-webkit-slider-runnable-track {
+  background: linear-gradient(to right, var(--accent) var(--pct,0%), var(--border2) var(--pct,0%));
+  height: 3px; border-radius: 2px;
+}
+.sl-ends { display: flex; justify-content: space-between; margin-top: 1px; }
+.sl-end { font-family: 'IBM Plex Mono', monospace; font-size: 8px; color: var(--text-dim); }
+
+/* IRMAA note in sidebar */
+.irmaa-note {
+  margin-top: 6px; font-size: 9px; color: var(--text-muted);
+  line-height: 1.6; display: none;
+  background: rgba(217,119,6,0.06); border: 1px solid rgba(217,119,6,0.2);
+  border-radius: 4px; padding: 6px 8px;
+}
+
+/* ── Main content ─────────────────────────────────────────── */
+.main {
+  padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 14px;
+  overflow-x: hidden;
+}
+
+/* Panels wrapper */
+.panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* Each panel */
+.panel {
+  display: flex; flex-direction: column; gap: 10px;
+}
+.panel-hdr {
+  display: flex; align-items: center; gap: 8px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px; font-weight: 600; letter-spacing: 0.12em;
+  text-transform: uppercase; padding-bottom: 6px;
+  border-bottom: 2px solid currentColor;
+}
+.panel-a .panel-hdr { color: var(--pa); }
+.panel-b .panel-hdr { color: var(--pb); }
+
+/* Cards */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+}
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 9px 11px;
+}
+.card-lbl {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 7px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--text-muted); margin-bottom: 4px;
+}
+.card-val {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 17px; font-weight: 600; line-height: 1;
+}
+.card-sub { font-size: 9px; color: var(--text-muted); margin-top: 2px; }
+
+/* Detail blocks */
+.detail-box {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; overflow: hidden;
+}
+.detail-box-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 8px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--text-muted); padding: 8px 12px 6px;
+  border-bottom: 1px solid var(--border);
+}
+.detail-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+}
+.detail-grid.cols3 { grid-template-columns: repeat(3, 1fr); }
+.d-item {
+  padding: 8px 10px; border-right: 1px solid var(--border);
+}
+.d-item:last-child { border-right: none; }
+.d-lbl { font-size: 9px; color: var(--text-muted); margin-bottom: 3px; }
+.d-val { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 500; }
+.d-sub { font-size: 8px; color: var(--text-dim); margin-top: 2px; }
+
+/* IRMAA detail box */
+.irmaa-box {
+  display: none;
+  background: rgba(217,119,6,0.04); border: 1px solid rgba(217,119,6,0.22);
+  border-radius: 6px; overflow: hidden;
+}
+.irmaa-box-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 8px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--irmaa); padding: 8px 12px 6px;
+  border-bottom: 1px solid rgba(217,119,6,0.2);
+}
+
+/* Chart */
+.chart-box {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 12px 14px;
+}
+.chart-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px; flex-wrap: wrap; gap: 6px;
+}
+.chart-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 8px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--text-muted);
+}
+.legend { display: flex; gap: 10px; flex-wrap: wrap; }
+.leg-item {
+  display: flex; align-items: center; gap: 4px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 8px; color: var(--text-muted);
+}
+.leg-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+canvas { display: block; width: 100% !important; }
+
+/* ── Comparison diff row ──────────────────────────────────── */
+.diff-section {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; overflow: hidden;
+}
+.diff-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 8px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--text-muted); padding: 8px 14px 6px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+}
+.diff-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+}
+.diff-item {
+  padding: 10px 12px; border-right: 1px solid var(--border);
+  text-align: center;
+}
+.diff-item:last-child { border-right: none; }
+.diff-lbl { font-size: 9px; color: var(--text-muted); margin-bottom: 4px; }
+.diff-a { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 500; color: var(--pa); }
+.diff-b { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 500; color: var(--pb); }
+.diff-delta {
+  font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600;
+  margin-top: 4px; padding-top: 4px; border-top: 1px dashed var(--border);
+}
+.diff-delta.pos { color: var(--red); }
+.diff-delta.neg { color: var(--green); }
+.diff-delta.zero { color: var(--text-dim); }
+
+.pill {
+  font-family: 'IBM Plex Mono', monospace; font-size: 7px; letter-spacing: 0.1em;
+  text-transform: uppercase; padding: 2px 6px; border-radius: 3px;
+  background: rgba(59,130,246,0.1); color: var(--accent2);
+  border: 1px solid rgba(59,130,246,0.2);
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>LTCG Tax Calculator</h1>
+  <span>Federal + State Effective Rates — 2024 · CA incl. 1.1% SDI · IRMAA 5-tier · Side-by-Side Comparison</span>
+</header>
+
+<div class="page">
+
+  <!-- ══ Shared Sidebar ══ -->
+  <aside class="sidebar">
+    <div>
+      <div class="sidebar-title">Inputs — Scenario A</div>
+    </div>
+
+    <div>
+      <div class="sec-label">Filing Status</div>
+      <div class="sel-wrap">
+        <select id="A-filing" onchange="P.A.setFiling(this.value); syncDiff()">
+          <option value="single">Single</option>
+          <option value="mfj" selected>Married Filing Jointly</option>
+        </select>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-label">State</div>
+      <div class="sel-wrap">
+        <select id="A-state" onchange="P.A.update()">
+          <option value="WA">Washington (WA)</option>
+          <option value="CA" selected>California (CA)</option>
+          <option value="NY">New York State (NY)</option>
+          <option value="NYC">New York + NYC</option>
+        </select>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-label">Long-Term Capital Gains</div>
+      <div class="sl-wrap">
+        <div class="sl-row">
+          <span class="sl-name">LTCG</span>
+          <span class="sl-val" id="A-ltcg-disp">$500,000</span>
+        </div>
+        <input type="range" id="A-ltcg" min="0" max="3000000" step="10000" value="500000" oninput="P.A.update()">
+        <div class="sl-ends"><span class="sl-end">$0</span><span class="sl-end">$3M</span></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-label">Ordinary Income</div>
+      <div class="sl-wrap">
+        <div class="sl-row">
+          <span class="sl-name">Ord. Income</span>
+          <span class="sl-val" id="A-oi-disp">$200,000</span>
+        </div>
+        <input type="range" id="A-oi" min="0" max="1000000" step="5000" value="200000" oninput="P.A.update()">
+        <div class="sl-ends"><span class="sl-end">$0</span><span class="sl-end">$1M</span></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-label">Medicare IRMAA — # People</div>
+      <div class="sel-wrap">
+        <select id="A-med" onchange="P.A.update()">
+          <option value="0" selected>0 — No IRMAA</option>
+          <option value="1">1 Person on Medicare</option>
+          <option value="2">2 People on Medicare</option>
+        </select>
+      </div>
+      <div class="irmaa-note" id="A-irmaa-note"></div>
+    </div>
+
+    <hr style="border:none;border-top:1px solid var(--border)">
+
+    <div>
+      <div class="sidebar-title">Inputs — Scenario B</div>
+    </div>
+
+    <div>
+      <div class="sec-label">Filing Status</div>
+      <div class="sel-wrap">
+        <select id="B-filing" onchange="P.B.setFiling(this.value); syncDiff()">
+          <option value="single">Single</option>
+          <option value="mfj" selected>Married Filing Jointly</option>
+        </select>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-label">State</div>
+      <div class="sel-wrap">
+        <select id="B-state" onchange="P.B.update()">
+          <option value="WA">Washington (WA)</option>
+          <option value="CA" selected>California (CA)</option>
+          <option value="NY">New York State (NY)</option>
+          <option value="NYC">New York + NYC</option>
+        </select>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-label">Long-Term Capital Gains</div>
+      <div class="sl-wrap">
+        <div class="sl-row">
+          <span class="sl-name">LTCG</span>
+          <span class="sl-val" id="B-ltcg-disp">$500,000</span>
+        </div>
+        <input type="range" id="B-ltcg" min="0" max="3000000" step="10000" value="500000" oninput="P.B.update()">
+        <div class="sl-ends"><span class="sl-end">$0</span><span class="sl-end">$3M</span></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-label">Ordinary Income</div>
+      <div class="sl-wrap">
+        <div class="sl-row">
+          <span class="sl-name">Ord. Income</span>
+          <span class="sl-val" id="B-oi-disp">$200,000</span>
+        </div>
+        <input type="range" id="B-oi" min="0" max="1000000" step="5000" value="200000" oninput="P.B.update()">
+        <div class="sl-ends"><span class="sl-end">$0</span><span class="sl-end">$1M</span></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-label">Medicare IRMAA — # People</div>
+      <div class="sel-wrap">
+        <select id="B-med" onchange="P.B.update()">
+          <option value="0" selected>0 — No IRMAA</option>
+          <option value="1">1 Person on Medicare</option>
+          <option value="2">2 People on Medicare</option>
+        </select>
+      </div>
+      <div class="irmaa-note" id="B-irmaa-note"></div>
+    </div>
+  </aside>
+
+  <!-- ══ Main ══ -->
+  <main class="main">
+
+    <!-- Two panels side by side -->
+    <div class="panels">
+
+      <!-- Panel A -->
+      <div class="panel panel-a">
+        <div class="panel-hdr">
+          <svg width="8" height="8"><circle cx="4" cy="4" r="4" fill="var(--pa)"/></svg>
+          Scenario A
+        </div>
+
+        <!-- Summary cards -->
+        <div class="cards">
+          <div class="card">
+            <div class="card-lbl">Federal Rate</div>
+            <div class="card-val" id="A-c-fed" style="color:var(--accent2)">—</div>
+            <div class="card-sub">Incl. NIIT</div>
+          </div>
+          <div class="card">
+            <div class="card-lbl">State Rate</div>
+            <div class="card-val" id="A-c-state" style="color:var(--text)">—</div>
+            <div class="card-sub" id="A-state-sub">—</div>
+          </div>
+          <div class="card">
+            <div class="card-lbl">Combined Rate</div>
+            <div class="card-val" id="A-c-combined" style="color:var(--amber)">—</div>
+            <div class="card-sub">Fed + State</div>
+          </div>
+        </div>
+
+        <!-- Federal breakdown -->
+        <div class="detail-box">
+          <div class="detail-box-title">Federal Breakdown</div>
+          <div class="detail-grid">
+            <div class="d-item">
+              <div class="d-lbl">Tax w/o LTCG</div>
+              <div class="d-val" id="A-fed-without">—</div>
+              <div class="d-sub">Ordinary only</div>
+            </div>
+            <div class="d-item">
+              <div class="d-lbl">Tax w/ LTCG</div>
+              <div class="d-val" id="A-fed-with">—</div>
+              <div class="d-sub">Incl. LTCG + NIIT</div>
+            </div>
+            <div class="d-item">
+              <div class="d-lbl">NIIT</div>
+              <div class="d-val" id="A-fed-niit">—</div>
+              <div class="d-sub">3.8% net invest.</div>
+            </div>
+            <div class="d-item">
+              <div class="d-lbl">LTCG Tax Δ</div>
+              <div class="d-val" id="A-fed-diff">—</div>
+              <div class="d-sub">Added by LTCG</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- State breakdown -->
+        <div class="detail-box">
+          <div class="detail-box-title" id="A-state-title">State Breakdown</div>
+          <div class="detail-grid cols3">
+            <div class="d-item">
+              <div class="d-lbl">State Tax w/o LTCG</div>
+              <div class="d-val" id="A-st-without">—</div>
+            </div>
+            <div class="d-item">
+              <div class="d-lbl">State Tax w/ LTCG</div>
+              <div class="d-val" id="A-st-with">—</div>
+            </div>
+            <div class="d-item">
+              <div class="d-lbl">State Tax Δ</div>
+              <div class="d-val" id="A-st-diff">—</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- IRMAA box -->
+        <div class="irmaa-box" id="A-irmaa-box">
+          <div class="irmaa-box-title">IRMAA Medicare Surcharge</div>
+          <div class="detail-grid" style="grid-template-columns:repeat(5,1fr)">
+            <div class="d-item">
+              <div class="d-lbl">People on Medicare</div>
+              <div class="d-val" id="A-ir-people">—</div>
+              <div class="d-sub">Count</div>
+            </div>
+            <div class="d-item">
+              <div class="d-lbl">Surcharge w/o LTCG</div>
+              <div class="d-val" id="A-ir-without">—</div>
+              <div class="d-sub">Pre-LTCG MAGI</div>
+            </div>
+            <div class="d-item">
+              <div class="d-lbl">Surcharge w/ LTCG</div>
+              <div class="d-val" id="A-ir-with">—</div>
+              <div class="d-sub">Post-LTCG MAGI</div>
+            </div>
+            <div class="d-item">
+              <div class="d-lbl">Added by LTCG</div>
+              <div class="d-val" id="A-ir-diff" style="color:var(--irmaa)">—</div>
+              <div class="d-sub">Surcharge Δ</div>
+            </div>
+            <div class="d-item" style="background:rgba(217,119,6,0.06)">
+              <div class="d-lbl" style="color:var(--irmaa)">Total IRMAA Surcharge</div>
+              <div class="d-val" id="A-ir-total" style="color:var(--irmaa);font-size:15px;font-weight:600">—</div>
+              <div class="d-sub">Annual w/ LTCG</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chart -->
+        <div class="chart-box">
+          <div class="chart-hdr">
+            <div class="chart-title">Eff. Rate vs LTCG Amount</div>
+            <div class="legend" id="A-legend"></div>
+          </div>
+          <canvas id="A-chart" height="180"></canvas>
+        </div>
+      </div>
+
+      <!-- Panel B -->
+      <div class="panel panel-b">
+        <div class="panel-hdr">
+          <svg width="8" height="8"><circle cx="4" cy="4" r="4" fill="var(--pb)"/></svg>
+          Scenario B
+        </div>
+
+        <div class="cards">
+          <div class="card">
+            <div class="card-lbl">Federal Rate</div>
+            <div class="card-val" id="B-c-fed" style="color:var(--accent2)">—</div>
+            <div class="card-sub">Incl. NIIT</div>
+          </div>
+          <div class="card">
+            <div class="card-lbl">State Rate</div>
+            <div class="card-val" id="B-c-state" style="color:var(--text)">—</div>
+            <div class="card-sub" id="B-state-sub">—</div>
+          </div>
+          <div class="card">
+            <div class="card-lbl">Combined Rate</div>
+            <div class="card-val" id="B-c-combined" style="color:var(--amber)">—</div>
+            <div class="card-sub">Fed + State</div>
+          </div>
+        </div>
+
+        <div class="detail-box">
+          <div class="detail-box-title">Federal Breakdown</div>
+          <div class="detail-grid">
+            <div class="d-item">
+              <div class="d-lbl">Tax w/o LTCG</div>
+              <div class="d-val" id="B-fed-without">—</div>
+              <div class="d-sub">Ordinary only</div>
+            </div>
+            <div class="d-item">
+              <div class="d-lbl">Tax w/ LTCG</div>
+              <div class="d-val" id="B-fed-with">—</div>
+              <div class="d-sub">Incl. LTCG + NIIT</div>
+            </div>
+            <div class="d-item">
+              <div class="d-lbl">NIIT</div>
+              <div class="d-val" id="B-fed-niit">—</div>
+              <div class="d-sub">3.8% net invest.</div>
+            </div>
+            <div class="d-item">
+              <div class="d-lbl">LTCG Tax Δ</div>
+              <div class="d-val" id="B-fed-diff">—</div>
+              <div class="d-sub">Added by LTCG</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-box">
+          <div class="detail-box-title" id="B-state-title">State Breakdown</div>
+          <div class="detail-grid cols3">
+            <div class="d-item">
+              <div class="d-lbl">State Tax w/o LTCG</div>
+              <div class="d-val" id="B-st-without">—</div>
+            </div>
+            <div class="d-item">
+              <div class="d-lbl">State Tax w/ LTCG</div>
+              <div class="d-val" id="B-st-with">—</div>
+            </div>
+            <div class="d-item">
+              <div class="d-lbl">State Tax Δ</div>
+              <div class="d-val" id="B-st-diff">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="irmaa-box" id="B-irmaa-box">
+          <div class="irmaa-box-title">IRMAA Medicare Surcharge</div>
+          <div class="detail-grid" style="grid-template-columns:repeat(5,1fr)">
+            <div class="d-item">
+              <div class="d-lbl">People on Medicare</div>
+              <div class="d-val" id="B-ir-people">—</div>
+              <div class="d-sub">Count</div>
+            </div>
+            <div class="d-item">
+              <div class="d-lbl">Surcharge w/o LTCG</div>
+              <div class="d-val" id="B-ir-without">—</div>
+              <div class="d-sub">Pre-LTCG MAGI</div>
+            </div>
+            <div class="d-item">
+              <div class="d-lbl">Surcharge w/ LTCG</div>
+              <div class="d-val" id="B-ir-with">—</div>
+              <div class="d-sub">Post-LTCG MAGI</div>
+            </div>
+            <div class="d-item">
+              <div class="d-lbl">Added by LTCG</div>
+              <div class="d-val" id="B-ir-diff" style="color:var(--irmaa)">—</div>
+              <div class="d-sub">Surcharge Δ</div>
+            </div>
+            <div class="d-item" style="background:rgba(217,119,6,0.06)">
+              <div class="d-lbl" style="color:var(--irmaa)">Total IRMAA Surcharge</div>
+              <div class="d-val" id="B-ir-total" style="color:var(--irmaa);font-size:15px;font-weight:600">—</div>
+              <div class="d-sub">Annual w/ LTCG</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-box">
+          <div class="chart-hdr">
+            <div class="chart-title">Eff. Rate vs LTCG Amount</div>
+            <div class="legend" id="B-legend"></div>
+          </div>
+          <canvas id="B-chart" height="180"></canvas>
+        </div>
+      </div>
+
+    </div><!-- .panels -->
+
+    <!-- ══ Difference row ══ -->
+    <div class="diff-section">
+      <div class="diff-title">
+        A vs B — Differences at Current LTCG
+        <span class="pill">B − A</span>
+        <span style="font-size:9px;color:var(--text-muted);font-family:'IBM Plex Mono',monospace;font-weight:400;margin-left:auto">
+          <span style="color:var(--green)">■</span> B lower &nbsp;
+          <span style="color:var(--red)">■</span> B higher
+        </span>
+      </div>
+      <div class="diff-grid">
+        <div class="diff-item">
+          <div class="diff-lbl">Federal Rate</div>
+          <div class="diff-a" id="d-a-fed">—</div>
+          <div class="diff-b" id="d-b-fed">—</div>
+          <div class="diff-delta" id="d-delta-fed">—</div>
+        </div>
+        <div class="diff-item">
+          <div class="diff-lbl">State Rate</div>
+          <div class="diff-a" id="d-a-state">—</div>
+          <div class="diff-b" id="d-b-state">—</div>
+          <div class="diff-delta" id="d-delta-state">—</div>
+        </div>
+        <div class="diff-item">
+          <div class="diff-lbl">Combined Rate</div>
+          <div class="diff-a" id="d-a-combined">—</div>
+          <div class="diff-b" id="d-b-combined">—</div>
+          <div class="diff-delta" id="d-delta-combined">—</div>
+        </div>
+        <div class="diff-item">
+          <div class="diff-lbl">Total IRMAA Surcharge</div>
+          <div class="diff-a" id="d-a-irmaa">—</div>
+          <div class="diff-b" id="d-b-irmaa">—</div>
+          <div class="diff-delta" id="d-delta-irmaa">—</div>
+        </div>
+        <div class="diff-item">
+          <div class="diff-lbl">Total Tax Added</div>
+          <div class="diff-a" id="d-a-total">—</div>
+          <div class="diff-b" id="d-b-total">—</div>
+          <div class="diff-delta" id="d-delta-total">—</div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════════
+// Tax Data 2024
+// ══════════════════════════════════════════════════════════════════════
+const FED_ORD = {
+  single: [[11600,0.10],[47150,0.12],[100525,0.22],[191950,0.24],[243725,0.32],[609350,0.35],[Infinity,0.37]],
+  mfj:    [[23200,0.10],[94300,0.12],[201050,0.22],[383900,0.24],[487450,0.32],[731200,0.35],[Infinity,0.37]]
+};
+const FED_LTCG = {
+  single: [[47025,0.00],[518900,0.15],[Infinity,0.20]],
+  mfj:    [[94050,0.00],[583750,0.15],[Infinity,0.20]]
+};
+const NIIT_THRESH = { single: 200000, mfj: 250000 };
+const STD_DED = { single: 14600, mfj: 29200 };
+const NIIT_RATE = 0.038;
+
+// IRMAA 2024 — surcharge per person per tier (annual, Part B + Part D combined)
+// Source: CMS 2024 Medicare costs
+const IRMAA = [
+  { single_t: 103000, mfj_t: 206000, per_person:  993.60 },  // Tier 1
+  { single_t: 129000, mfj_t: 258000, per_person: 2496.00 },  // Tier 2
+  { single_t: 161000, mfj_t: 322000, per_person: 3999.60 },  // Tier 3
+  { single_t: 193000, mfj_t: 386000, per_person: 5502.00 },  // Tier 4
+  { single_t: 500000, mfj_t: 750000, per_person: 6003.60 },  // Tier 5
+];
+
+const CA_BR = {
+  single: [[10099,0.01],[23942,0.02],[37788,0.04],[52455,0.06],[66295,0.08],[338639,0.093],[406364,0.103],[677275,0.113],[Infinity,0.123]],
+  mfj:    [[20198,0.01],[47884,0.02],[75576,0.04],[104910,0.06],[132590,0.08],[677278,0.093],[812728,0.103],[1000000,0.113],[Infinity,0.123]]
+};
+const NY_BR = {
+  single: [[17150,0.04],[23600,0.045],[27900,0.0525],[161550,0.055],[323200,0.06],[2155350,0.0685],[5000000,0.0965],[25000000,0.103],[Infinity,0.109]],
+  mfj:    [[17150,0.04],[23600,0.045],[27900,0.0525],[161550,0.055],[323200,0.06],[2155350,0.0685],[5000000,0.0965],[25000000,0.103],[Infinity,0.109]]
+};
+const NYC_BR = {
+  single: [[12000,0.03078],[25000,0.03762],[50000,0.03819],[Infinity,0.03876]],
+  mfj:    [[21600,0.03078],[45000,0.03762],[90000,0.03819],[Infinity,0.03876]]
+};
+const WA_THRESH = 262000, WA_RATE = 0.07;
+
+const STATE_META = {
+  WA:  { name: 'Washington',     color: '#8b5cf6' },
+  CA:  { name: 'California',     color: '#e11d48' },
+  NY:  { name: 'New York State', color: '#0891b2' },
+  NYC: { name: 'NY + NYC',       color: '#0e7490' },
+};
+
+// ══════════════════════════════════════════════════════════════════════
+// Computation helpers
+// ══════════════════════════════════════════════════════════════════════
+function brTax(income, brackets) {
+  let tax = 0, prev = 0;
+  for (const [lim, rate] of brackets) {
+    if (income <= prev) break;
+    tax += (Math.min(income, lim) - prev) * rate;
+    prev = lim;
+  }
+  return tax;
+}
+
+function fedOrd(agi, f) { return brTax(Math.max(0, agi - STD_DED[f]), FED_ORD[f]); }
+
+function fedLTCGtax(oi, ltcg, f) {
+  const base = Math.max(0, oi - STD_DED[f]);
+  const top  = base + ltcg;
+  let tax = 0, prev = 0;
+  for (const [lim, rate] of FED_LTCG[f]) {
+    if (top <= prev) break;
+    const lo = Math.max(base, prev), hi = Math.min(top, lim);
+    if (hi > lo) tax += (hi - lo) * rate;
+    prev = lim;
+  }
+  return tax;
+}
+
+function niit(oi, ltcg, f) {
+  const magi = oi + ltcg, thr = NIIT_THRESH[f];
+  return magi > thr ? Math.min(ltcg, magi - thr) * NIIT_RATE : 0;
+}
+
+function fedTotal(oi, ltcg, f) {
+  const ord  = fedOrd(oi, f);
+  const lcg  = fedLTCGtax(oi, ltcg, f);
+  const n    = niit(oi, ltcg, f);
+  return { ord, lcg, niit: n, total: ord + lcg + n };
+}
+
+function stateTax(key, oi, ltcg, f) {
+  if (key === 'WA') {
+    const w = ltcg > WA_THRESH ? (ltcg - WA_THRESH) * WA_RATE : 0;
+    return { without: 0, with: w };
+  }
+  if (key === 'CA') {
+    return {
+      without: brTax(oi, CA_BR[f]) + oi * 0.011,
+      with:    brTax(oi+ltcg, CA_BR[f]) + (oi+ltcg) * 0.011
+    };
+  }
+  if (key === 'NY') {
+    return { without: brTax(oi, NY_BR[f]), with: brTax(oi+ltcg, NY_BR[f]) };
+  }
+  if (key === 'NYC') {
+    return {
+      without: brTax(oi, NY_BR[f]) + brTax(oi, NYC_BR[f]),
+      with:    brTax(oi+ltcg, NY_BR[f]) + brTax(oi+ltcg, NYC_BR[f])
+    };
+  }
+}
+
+function irmaaCalc(oi, ltcg, f, nPeople) {
+  if (nPeople === 0) return { surWithout: 0, surWith: 0, diff: 0 };
+
+  // Find the highest tier surcharge (per person) based on MAGI
+  function surPerPerson(magi) {
+    let sur = 0;
+    for (const tier of IRMAA) {
+      const thr = f === 'mfj' ? tier.mfj_t : tier.single_t;
+      if (magi > thr) sur = tier.per_person; // overwrite — higher tier wins
+    }
+    return sur;
+  }
+
+  const surWithout = surPerPerson(oi)          * nPeople;
+  const surWith    = surPerPerson(oi + ltcg)   * nPeople;
+  return { surWithout, surWith, diff: surWith - surWithout };
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// Formatting
+// ══════════════════════════════════════════════════════════════════════
+const f$ = n => (n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString();
+const fP = n => (n * 100).toFixed(2) + '%';
+const fPt= n => (n >= 0 ? '+' : '') + (n * 100).toFixed(2) + '%';
+const f$t= n => (n >= 0 ? '+' : '-') + '$' + Math.abs(Math.round(n)).toLocaleString();
+
+function setDelta(elId, val, isRate) {
+  const el = document.getElementById(elId);
+  const fmt = isRate ? fPt(val) : f$t(val);
+  el.textContent = fmt;
+  el.className = 'diff-delta ' + (Math.abs(val) < 0.00005 ? 'zero' : val > 0 ? 'pos' : 'neg');
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// Panel class
+// ══════════════════════════════════════════════════════════════════════
+const CPTS = 80;
+
+// Store last computed values for diff
+const last = { A: {}, B: {} };
+
+class Panel {
+  constructor(id) {
+    this.id = id;
+    this.filing = 'mfj';
+    this.chart = null;
+  }
+  el(s) { return document.getElementById(this.id + '-' + s); }
+  setFiling(f) { this.filing = f; this.update(); }
+
+  sliderPct(name, min, max) {
+    const el = this.el(name);
+    el.style.setProperty('--pct', ((el.value - min) / (max - min) * 100) + '%');
+  }
+
+  update() {
+    const id = this.id, f = this.filing;
+    const ltcg = parseInt(this.el('ltcg').value);
+    const oi   = parseInt(this.el('oi').value);
+    const med  = parseInt(this.el('med').value);
+    const stateKey = this.el('state').value;
+    const stateMeta = STATE_META[stateKey];
+
+    this.el('ltcg-disp').textContent = f$(ltcg);
+    this.el('oi-disp').textContent   = f$(oi);
+    this.sliderPct('ltcg', 0, 3000000);
+    this.sliderPct('oi',   0,      1000000);
+
+    // Federal
+    const fBase = fedTotal(oi, 0,    f);
+    const fWith = fedTotal(oi, ltcg, f);
+    const fedDiff = fWith.total - fBase.total;
+    const fedRate = ltcg > 0 ? fedDiff / ltcg : 0;
+
+    this.el('fed-without').textContent = f$(fBase.total);
+    this.el('fed-with').textContent    = f$(fWith.total);
+    this.el('fed-niit').textContent    = f$(fWith.niit);
+    this.el('fed-diff').textContent    = f$(fedDiff);
+    this.el('c-fed').textContent       = fP(fedRate);
+
+    // State
+    const s = stateTax(stateKey, oi, ltcg, f);
+    const stDiff  = s.with - s.without;
+    const stRate  = ltcg > 0 ? stDiff / ltcg : 0;
+    const combined = fedRate + stRate;
+
+    this.el('state-title').textContent = stateMeta.name + ' Breakdown';
+    this.el('state-sub').textContent   = stateMeta.name;
+    this.el('c-state').textContent     = fP(stRate);
+    this.el('c-state').style.color     = stateMeta.color;
+    this.el('c-combined').textContent  = fP(combined);
+    this.el('st-without').textContent  = f$(s.without);
+    this.el('st-with').textContent     = f$(s.with);
+    this.el('st-diff').textContent     = f$(stDiff);
+
+    // IRMAA
+    const ir = irmaaCalc(oi, ltcg, f, med);
+    const irmaaBox  = this.el('irmaa-box');
+    const irmaaNote = this.el('irmaa-note');
+    if (med > 0) {
+      this.el('ir-people').textContent  = med;
+      this.el('ir-without').textContent = f$(ir.surWithout);
+      this.el('ir-with').textContent    = f$(ir.surWith);
+      this.el('ir-diff').textContent    = f$(ir.diff);
+      this.el('ir-total').textContent   = f$(ir.surWith);   // total annual surcharge w/ LTCG
+      irmaaBox.style.display  = '';
+      irmaaNote.style.display = '';
+      const tierLabels = IRMAA.map((t,i) => {
+        const thr = f === 'mfj' ? t.mfj_t : t.single_t;
+        return `T${i+1} &gt;${f$(thr)}`;
+      }).join(' · ');
+      irmaaNote.innerHTML = `<b>${med}p on Medicare</b> · ${tierLabels}<br>LTCG adds: <b style="color:var(--irmaa)">${f$(ir.diff)}</b> · Total surcharge: <b style="color:var(--irmaa)">${f$(ir.surWith)}</b>`;
+    } else {
+      irmaaBox.style.display  = 'none';
+      irmaaNote.style.display = 'none';
+    }
+
+    // Store for diff
+    last[id] = { fedRate, stRate, combined, irDiff: ir.diff, irTotal: ir.surWith, totalAdded: fedDiff + stDiff + ir.diff };
+
+    syncDiff();
+    this.updateChart(oi, ltcg, med, stateKey, f);
+  }
+
+  updateChart(oi, curLTCG, med, stateKey, f) {
+    const MIN = 0, MAX = 3000000;
+    const labels = [], fedDs = [], stDs = [], irDs = [];
+    const stMeta = STATE_META[stateKey];
+
+    for (let i = 0; i <= CPTS; i++) {
+      const ltcg = MIN + (MAX - MIN) * (i / CPTS);
+      labels.push(ltcg);
+
+      if (ltcg === 0) {
+        fedDs.push(0); stDs.push(0); irDs.push(0);
+        continue;
+      }
+
+      const fb = fedTotal(oi, 0, f), fw = fedTotal(oi, ltcg, f);
+      const fr = (fw.total - fb.total) / ltcg;
+      fedDs.push(fr * 100);
+
+      const s  = stateTax(stateKey, oi, ltcg, f);
+      const sr = (s.with - s.without) / ltcg;
+      stDs.push((fr + sr) * 100);
+
+      if (med > 0) {
+        const ir = irmaaCalc(oi, ltcg, f, med);
+        irDs.push((ir.diff / ltcg) * 100);
+      } else {
+        irDs.push(0);
+      }
+    }
+
+    // Store series so shared-scale can read them
+    this._fedDs = fedDs;
+    this._stDs  = stDs;
+    this._irDs  = irDs;
+
+    const datasets = [
+      {
+        label: 'Federal', data: fedDs,
+        borderColor: '#3b82f6', backgroundColor: 'transparent',
+        borderWidth: 2, tension: 0.3, pointRadius: 0, fill: false,
+      },
+      {
+        label: stMeta.name + ' Combined', data: stDs,
+        borderColor: stMeta.color, backgroundColor: stMeta.color + '18',
+        borderWidth: 2, tension: 0.3, pointRadius: 0, fill: true,
+      },
+      ...(med > 0 ? [{
+        label: `IRMAA (${med}p)`, data: irDs,
+        borderColor: '#d97706', backgroundColor: 'rgba(217,119,6,0.07)',
+        borderWidth: 1.5, tension: 0.3, pointRadius: 0, fill: true,
+        borderDash: [4, 3],
+      }] : [])
+    ];
+
+    // Update legend
+    const legend = document.getElementById(this.id + '-legend');
+    legend.innerHTML = [
+      { label: 'Federal', color: '#3b82f6' },
+      { label: stMeta.name, color: stMeta.color },
+      ...(med > 0 ? [{ label: `IRMAA (${med}p)`, color: '#d97706' }] : [])
+    ].map(l => `<div class="leg-item"><div class="leg-dot" style="background:${l.color}"></div>${l.label}</div>`).join('');
+
+    // Compute shared Y max across both panels (rounded up to nearest 5%)
+    const allVals = [
+      ...(P && P.A && P.A._stDs ? P.A._stDs : stDs),
+      ...(P && P.B && P.B._stDs ? P.B._stDs : stDs),
+      ...(P && P.A && P.A._irDs ? P.A._irDs : []),
+      ...(P && P.B && P.B._irDs ? P.B._irDs : []),
+    ].filter(v => isFinite(v));
+    const rawMax = allVals.length ? Math.max(...allVals) : 60;
+    const yMax   = Math.ceil(rawMax / 5) * 5 + 5;  // round up to next 5, plus 5 padding
+
+    // Cursor plugin — vertical line at current LTCG position
+    const panelRef = this;
+    const vertPlugin = {
+      id: 'vert_' + this.id,
+      afterDraw(chart) {
+        const xScale = chart.scales.x;
+        const cLTCG = panelRef._curLTCG ?? curLTCG;
+        const x = xScale.getPixelForValue(cLTCG);
+        const { top, bottom } = chart.chartArea;
+        const ctx2 = chart.ctx;
+        // Shadow / glow
+        ctx2.save();
+        ctx2.strokeStyle = 'rgba(37,99,235,0.13)';
+        ctx2.lineWidth = 5;
+        ctx2.setLineDash([]);
+        ctx2.beginPath(); ctx2.moveTo(x, top); ctx2.lineTo(x, bottom); ctx2.stroke();
+        // Solid cursor line
+        ctx2.strokeStyle = 'rgba(37,99,235,0.70)';
+        ctx2.lineWidth = 1.5;
+        ctx2.setLineDash([4, 3]);
+        ctx2.beginPath(); ctx2.moveTo(x, top); ctx2.lineTo(x, bottom); ctx2.stroke();
+        // Label at top
+        const label = cLTCG >= 1e6 ? '$'+(cLTCG/1e6).toFixed(2)+'M' : '$'+Math.round(cLTCG/1000)+'K';
+        ctx2.setLineDash([]);
+        ctx2.font = '600 8px IBM Plex Mono, monospace';
+        ctx2.fillStyle = 'rgba(37,99,235,0.85)';
+        ctx2.textAlign = 'center';
+        const tw = ctx2.measureText(label).width + 8;
+        const tx = Math.min(Math.max(x, chart.chartArea.left + tw/2), chart.chartArea.right - tw/2);
+        ctx2.fillStyle = 'rgba(239,246,255,0.92)';
+        ctx2.fillRect(tx - tw/2, top + 2, tw, 14);
+        ctx2.fillStyle = 'rgba(37,99,235,0.85)';
+        ctx2.fillText(label, tx, top + 12);
+        ctx2.restore();
+      }
+    };
+    this._curLTCG = curLTCG;
+
+    const opts = {
+      responsive: true,
+      animation: { duration: 0 },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#fff', borderColor: '#dde2ea', borderWidth: 1,
+          titleColor: '#6b7a8d', bodyColor: '#1a2133',
+          titleFont: { family: 'IBM Plex Mono', size: 8 },
+          bodyFont:  { family: 'IBM Plex Mono', size: 10 },
+          padding: 8,
+          callbacks: {
+            title: ctx => '$' + Math.round(ctx[0].parsed.x / 1000) + 'K LTCG',
+            label: ctx => '  ' + ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(2) + '%',
+          }
+        }
+      },
+      scales: {
+        x: {
+          type: 'linear', min: MIN, max: MAX,
+          grid: { color: '#eef0f4' }, border: { color: '#dde2ea' },
+          ticks: {
+            color: '#8a96a4', font: { family: 'IBM Plex Mono', size: 8 },
+            maxTicksLimit: 6,
+            callback: v => v >= 1e6 ? '$'+(v/1e6).toFixed(1)+'M' : '$'+Math.round(v/1000)+'K'
+          }
+        },
+        y: {
+          min: 0, max: yMax,
+          grid: { color: '#eef0f4' }, border: { color: '#dde2ea' },
+          ticks: { color: '#8a96a4', font: { family: 'IBM Plex Mono', size: 8 }, callback: v => v.toFixed(0)+'%', stepSize: 5 }
+        }
+      }
+    };
+
+    const cid = this.id + '-chart';
+    if (!this.chart) {
+      this.chart = new Chart(document.getElementById(cid).getContext('2d'), {
+        type: 'line',
+        data: { labels, datasets },
+        options: opts,
+        plugins: [vertPlugin]
+      });
+    } else {
+      this.chart.data.labels   = labels;
+      this.chart.data.datasets = datasets;
+      this.chart.options = opts;
+      this.chart._curLTCG = curLTCG;
+      this.chart.update('none');
+    }
+
+    // After updating self, nudge the other panel to re-sync Y scale
+    if (P) {
+      const other = this.id === 'A' ? P.B : P.A;
+      if (other && other.chart) {
+        const allV2 = [...(P.A._stDs||[]), ...(P.B._stDs||[]), ...(P.A._irDs||[]), ...(P.B._irDs||[])].filter(v => isFinite(v));
+        const sharedMax = Math.ceil((allV2.length ? Math.max(...allV2) : 60) / 5) * 5 + 5;
+        if (other.chart.options.scales.y.max !== sharedMax) {
+          other.chart.options.scales.y.max = sharedMax;
+          other.chart.update('none');
+        }
+        if (this.chart.options.scales.y.max !== sharedMax) {
+          this.chart.options.scales.y.max = sharedMax;
+          this.chart.update('none');
+        }
+      }
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// Diff row
+// ══════════════════════════════════════════════════════════════════════
+function syncDiff() {
+  const a = last.A, b = last.B;
+  if (!a.fedRate && a.fedRate !== 0) return;
+  if (!b.fedRate && b.fedRate !== 0) return;
+
+  document.getElementById('d-a-fed').textContent      = fP(a.fedRate);
+  document.getElementById('d-b-fed').textContent      = fP(b.fedRate);
+  setDelta('d-delta-fed', b.fedRate - a.fedRate, true);
+
+  document.getElementById('d-a-state').textContent    = fP(a.stRate);
+  document.getElementById('d-b-state').textContent    = fP(b.stRate);
+  setDelta('d-delta-state', b.stRate - a.stRate, true);
+
+  document.getElementById('d-a-combined').textContent = fP(a.combined);
+  document.getElementById('d-b-combined').textContent = fP(b.combined);
+  setDelta('d-delta-combined', b.combined - a.combined, true);
+
+  document.getElementById('d-a-irmaa').textContent    = f$(a.irTotal);
+  document.getElementById('d-b-irmaa').textContent    = f$(b.irTotal);
+  setDelta('d-delta-irmaa', b.irTotal - a.irTotal, false);
+
+  document.getElementById('d-a-total').textContent    = f$(a.totalAdded);
+  document.getElementById('d-b-total').textContent    = f$(b.totalAdded);
+  setDelta('d-delta-total', b.totalAdded - a.totalAdded, false);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// Init
+// ══════════════════════════════════════════════════════════════════════
+const P = { A: new Panel('A'), B: new Panel('B') };
+P.A.update();
+P.B.update();
+</script>
+</body>
+</html>
