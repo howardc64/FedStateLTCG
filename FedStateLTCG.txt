@@ -1,0 +1,66 @@
+Make html
+State List ( WA, CA, NY(NYC) )
+
+=== UI Theme
+
+Light color UI theme
+
+=== Input UI
+
+Pull down menu for filing status (MFJ (default), single)
+Pull down menu for State (default CA)
+LTCG slider input from $0 to $3M (initial $500k)
+Ordinary income slider input (initial $200k)
+Pull down menu for # person on Medicare insurance (Med = 0, 1, 2, default 0)
+
+=== Tax brackets
+
+Use latest Federal and state tax brackets
+
+=== Federal Calculator
+
+build a calculator for effective LTCG tax rate with federal for filing status. User input LTCG amount, ordinary income, output federal (show NIIT)
+
+Federal effective LTCG tax rate = difference with and without LTCG / LTCG
+
+=== IRRMA Calculator due to LTCG
+
+If Med > 0 calculate medicare IRRMA surcharge (Sur) for # person on medicare insurance.
+Show total IRRMA surcharge $ for # person on medicare insurance.
+
+=== State Calculator
+
+For selected state. Show the following details
+
+State tax with and without LTCG. Difference / LTCG amount = state effective LTCG tax rate
+
+Show state effective LTCG tax rate
+Show combined Federal and state effective tax rate
+
+==== Graph effective tax rate for federal + state
+
+Graph federal effective LTCG tax rate
+Graph combined effective tax rate for selected state
+X axis = LTCG slider range
+Draw a cursor (vertical line) matching LTCG slider value
+No default initial value line
+Graph changes smoothly with input UI changes
+
+==== Comparison
+
+2 sets UI, calculators, graphs
+All graphs have same X and Y scale
+Side by side for comparison
+
+Show differences between 2 comparisons
+
+Everything should fit width of a page
+
+=== Testing
+
+Spot check calculator results against https://www.dinkytown.net/java/1040-tax-calculator.html
+
+=== References
+
+Use html for style reference
+
